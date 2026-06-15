@@ -98,10 +98,10 @@ need the user's input.
 
 ## Wrap-up
 
-1. **`/ponytail-audit` on the PR diff** — over-engineering pass across everything
-   the branch changed.
-2. **Optional `/code-review`** — default **medium**; run **high** if the user asks
+1. **Optional `/code-review`** — default **medium**; run **high** if the user asks
    or the change is risky. Triage its findings into fixes vs backlog.
+2. **`/ponytail-audit` on the PR diff** — over-engineering pass across everything
+   the branch changed.
 3. **PR.** Push and open a **draft PR after the first commit lands** (so the user
    can watch it grow), keep the description current as items ship, and **finalize
    the description** at the end: a table of fixes (item · commit · what was wrong ·
