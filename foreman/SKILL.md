@@ -50,10 +50,38 @@ logs, a local backend run to monitor logs, or adding temporary logging to confir
 the cause. **You must root-cause a problem before fixing it.** Trivial items never
 get a full brainstorm — YAGNI applies to process too.
 
+## Delegation — keep the orchestrator lean
+
+You (the orchestrator) hold the plan, the punch list, and the verdicts — never the
+raw material that produced them. Offload anything that pulls bulk into context and
+keep only the conclusion. Delegating heavy reads is the primary defense against
+compaction — prefer it over growing your own context.
+
+**Offload to a subagent** (it returns a short verdict + `file:line` evidence, never
+the dump):
+- Multi-file RCA, git archaeology (`git log -S`/`-L`, blame sweeps), broad greps —
+  `Explore` for searches, `general-purpose`/`fork` for multi-step traces.
+- Playwright runs — DOM snapshots, console logs, and screenshots are huge; drive
+  them *inside* the subagent and get back pass/fail + the one line that mattered.
+- Log tailing, `curl`/probe sweeps, reading many files to answer one question.
+- Independent items or angles → spawn in parallel in a single message.
+
+**Tell each subagent its deliverable shape**: concise report, evidence as
+`file:line`, no file dumps, no transcripts. **Don't read a subagent's output/
+transcript file** — wait for its final report.
+
+**Propagate `ponytail` — subagents do NOT inherit it.**
+- Implementation/edit subagents: spawn as `fork` (carries your context + ponytail),
+  or embed the rule verbatim in the prompt ("laziest change that works, shortest
+  diff, mirror existing patterns, no unrequested abstractions").
+- Read-only explore/verify subagents don't need ponytail, but always need "return
+  the conclusion, not the material."
+
 ## The loop (generic, per queued item)
 
-Run autonomously, one item at a time. **Use parallel Opus 4.8 agents** for
-exploration and root-cause where the work is independent.
+Run autonomously, one item at a time. **Delegate by default** (see above): use
+parallel subagents for exploration and root-cause where the work is independent,
+and keep their bulk out of your context.
 
 1. **Explore & root-cause.** Verify the source in the actual code/logs/DB before
    touching anything. Confirm, don't assume.
@@ -66,7 +94,9 @@ exploration and root-cause where the work is independent.
 5. **Verify — adaptively.** Use the means that fit the change, then watch for
    regressions:
    - **Frontend** → run the local servers + drive Playwright + watch the browser
-     console / network and backend logs.
+     console / network and backend logs. Reuse an already-authenticated session if
+     one is running; drive Playwright inside a subagent so snapshots/console stay
+     out of your context and you get back just the verdict.
    - **Backend** → `curl`/`httpx` probes against a local server + monitor its logs
      + run targeted tests.
    - **Pure logic** → a unit or `assert`-based self-check.
@@ -98,10 +128,11 @@ need the user's input.
 
 ## Wrap-up
 
-1. **Optional `/code-review`** — default **medium**; run **high** if the user asks
+1. **`/code-review`** — always run it; default **medium**, **high** if the user asks
    or the change is risky. Triage its findings into fixes vs backlog.
 2. **`/ponytail-audit` on the PR diff** — over-engineering pass across everything
-   the branch changed.
+   the branch changed. Runs *after* code-review, so it can also prune anything the
+   review pass added.
 3. **PR.** Push and open a **draft PR after the first commit lands** (so the user
    can watch it grow), keep the description current as items ship, and **finalize
    the description** at the end: a table of fixes (item · commit · what was wrong ·
@@ -126,4 +157,6 @@ need the user's input.
   updating the PR for this branch is the expected end of the run and needs no extra
   approval.
 - `ponytail` governs how you build; this skill governs what you run. Keep both
-  active.
+  active — and propagate `ponytail` into every edit subagent (it doesn't inherit it).
+- **Keep your own context lean** — delegate heavy reads/Playwright/git archaeology
+  and keep only the verdict. Don't tail subagent transcript files.
